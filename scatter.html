@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+
+svg {
+  font: 10px sans-serif;
+  padding: 10px;
+}
+
+.axis,
+.frame {
+  shape-rendering: crispEdges;
+}
+
+.axis line {
+  stroke: #ddd;
+}
+
+.axis path {
+  display: none;
+}
+
+.cell text {
+  font-weight: bold;
+  text-transform: capitalize;
+}
+
+.frame {
+  fill: none;
+  stroke: #aaa;
+}
+
+circle {
+  fill-opacity: .9;
+}
+
+</style>
+<body>
+<script src="//d3js.org/d3.v3.min.js"></script>
+<script>
+
+var width = 960,
+    size = 230,
+    padding = 20;
+
+var x = d3.scale.linear()
+    .range([padding / 2, size - padding / 2]);
+
+var y = d3.scale.linear()
+    .range([size - padding / 2, padding / 2]);
+
+var xAxis = d3.svg.axis()
+    .scale(x)
+    .orient("bottom")
+    .ticks(6);
+
+var yAxis = d3.svg.axis()
+    .scale(y)
+    .orient("left")
+    .ticks(6);
+
+var color = d3.scale.category10();
+
+d3.csv("asia2002.csv", function(error, data) {
+  if (error) throw error;
+
+  var domainByTrait = {},
+      traits = d3.keys(data[0]).filter(function(d) { return d !== "Country"; }),
+      n = traits.length;
+
+  traits.forEach(function(trait) {
+    domainByTrait[trait] = d3.extent(data, function(d) { return d[trait]; });
+  });
+
+  xAxis.tickSize(size * n);
+  yAxis.tickSize(-size * n);
+
+  var svg = d3.select("body").append("svg")
+      .attr("width", size * n + padding)
+      .attr("height", size * n + padding)
+    .append("g")
+	.attr("style", "outline: thik solid black;")
+      .attr("transform", "translate(" + padding + "," + padding / 2 + ")");
+
+	  function transx(d, i) { 
+	  return "translate(" + (n - i - 1) * size + ",0)"; 
+	  }
+  svg.selectAll(".x.axis")
+      .data(traits)
+    .enter().append("g")
+      .attr("class", "x axis")
+      .attr("transform",transx)
+      .each(function(d) { x.domain(domainByTrait[d]); d3.select(this).call(xAxis); });
+
+	  function transy(d, i) { 
+	  return "translate(0," + i * size + ")"; 
+	  }
+  svg.selectAll(".y.axis")
+      .data(traits)
+    .enter().append("g")
+      .attr("class", "y axis")
+      .attr("transform",transy)
+      .each(function(d) { y.domain(domainByTrait[d]); d3.select(this).call(yAxis); });
+
+
+	  function trans(d) { 
+	  return "translate(" + (n - d.i - 1) * size + "," + d.j * size + ")"; 
+	  }
+  var cell = svg.selectAll(".cell")
+      .data(cross(traits, traits))
+    .enter().append("g")
+      .attr("class", "cell")
+      .attr("transform",trans)
+	  .attr("fill","red")
+	  .attr("font-size", "11px")
+      .each(plot);
+
+  // Titles for the diagonal.
+  cell.filter(function(d) { return d.i === d.j; }).append("text")
+      .attr("x", padding)
+      .attr("y", padding)
+      .attr("dy", ".71em")
+      .text(function(d) { return d.x; });
+
+  function plot(p) {
+    var cell = d3.select(this);
+
+    x.domain(domainByTrait[p.x]);
+    y.domain(domainByTrait[p.y]);
+
+    cell.append("rect")
+        .attr("class", "frame")
+        .attr("x", padding / 2)
+        .attr("y", padding / 2)
+        .attr("width", size - padding)
+        .attr("height", size - padding);
+		
+	function xcircle(d) 
+	{ 
+	return x(d[p.x]); 
+	}
+	function ycircle(d) {
+	return y(d[p.y]); 
+	}
+	function colorCircle(d) 
+	{ 
+	return color(d.Country); 
+	}
+    cell.selectAll("circle")
+        .data(data)
+      .enter().append("circle")
+        .attr("cx",xcircle)
+        .attr("cy",ycircle)
+        .attr("r", 4)
+        .style("fill",colorCircle);
+  }
+});
+
+function cross(a, b) {
+  var c = [], n = a.length, m = b.length, i, j;
+  for (i = -1; ++i < n;) for (j = -1; ++j < m;) c.push({x: a[i], i: i, y: b[j], j: j});
+  return c;
+}
+
+</script>
